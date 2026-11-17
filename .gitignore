@@ -51,3 +51,5 @@ docker-compose.*.yml
 Dockerfile
 .dockerenv
 
+
+CODEBASE_EXPLANATION.md

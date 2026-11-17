@@ -2,7 +2,9 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -14,6 +16,7 @@ const userSelect = {
   lastName: true,
   email: true,
   phone: true,
+  role: true,
   createdAt: true,
   updatedAt: true,
 };
@@ -47,9 +50,16 @@ export class UsersService {
   }
 
   async findAll() {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       select: userSelect,
       orderBy: { createdAt: 'desc' },
+    });
+
+    // Pinned sort: ADMIN accounts first, followed by regular USER accounts (newest first)
+    return users.sort((a, b) => {
+      if (a.role === Role.ADMIN && b.role !== Role.ADMIN) return -1;
+      if (a.role !== Role.ADMIN && b.role === Role.ADMIN) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }
 
@@ -98,7 +108,12 @@ export class UsersService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+    const user = await this.findOne(id);
+
+    if (user.role === Role.ADMIN) {
+      throw new BadRequestException('Administrator accounts cannot be deleted');
+    }
+
     await this.prisma.user.delete({ where: { id } });
     return { success: true, message: 'User deleted successfully' };
   }

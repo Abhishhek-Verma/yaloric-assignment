@@ -1,5 +1,15 @@
 import client from './client';
 
+export const getProfile = async () => {
+  const response = await client.get('/users/profile');
+  return response.data;
+};
+
+export const updateProfile = async (profileData) => {
+  const response = await client.patch('/users/profile', profileData);
+  return response.data;
+};
+
 export const getUsers = async () => {
   const response = await client.get('/users');
   return response.data;
@@ -7,11 +17,6 @@ export const getUsers = async () => {
 
 export const getUserById = async (id) => {
   const response = await client.get(`/users/${id}`);
-  return response.data;
-};
-
-export const createUser = async (userData) => {
-  const response = await client.post('/users', userData);
   return response.data;
 };
 

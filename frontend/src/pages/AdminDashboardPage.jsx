@@ -3,10 +3,11 @@ import { Navbar } from '../components/Navbar';
 import { UserTable } from '../components/UserTable';
 import { UserModal } from '../components/UserModal';
 import { DeleteModal } from '../components/DeleteModal';
-import { getUsers, createUser, updateUser, deleteUser } from '../api/users';
-import { UserPlus, RefreshCw } from 'lucide-react';
+import { UserDetailsModal } from '../components/UserDetailsModal';
+import { getUsers, updateUser, deleteUser } from '../api/users';
+import { RefreshCw, Shield } from 'lucide-react';
 
-export const DashboardPage = () => {
+export const AdminDashboardPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -18,6 +19,9 @@ export const DashboardPage = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
 
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [userToView, setUserToView] = useState(null);
+
   const fetchUsers = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -27,7 +31,7 @@ export const DashboardPage = () => {
       const data = await getUsers();
       setUsers(data);
     } catch (err) {
-      setError('Failed to fetch user list. Please make sure the backend is reachable.');
+      setError('Failed to fetch user list. Please make sure you are logged in as an administrator.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -37,11 +41,6 @@ export const DashboardPage = () => {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
-
-  const handleOpenAddModal = () => {
-    setUserToEdit(null);
-    setModalOpen(true);
-  };
 
   const handleOpenEditModal = (user) => {
     setUserToEdit(user);
@@ -53,13 +52,23 @@ export const DashboardPage = () => {
     setDeleteModalOpen(true);
   };
 
+  const handleOpenViewModal = (user) => {
+    setUserToView(user);
+    setDetailsModalOpen(true);
+  };
+
   const handleSaveUser = async (formData, id) => {
     if (id) {
       const updated = await updateUser(id, formData);
-      setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
-    } else {
-      const created = await createUser(formData);
-      setUsers((prev) => [created, ...prev]);
+      setUsers((prev) =>
+        prev
+          .map((u) => (u.id === id ? updated : u))
+          .sort((a, b) => {
+            if (a.role === 'ADMIN' && b.role !== 'ADMIN') return -1;
+            if (a.role !== 'ADMIN' && b.role === 'ADMIN') return 1;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          })
+      );
     }
   };
 
@@ -75,9 +84,15 @@ export const DashboardPage = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Registered Users</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Admin Directory</h1>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
+                <Shield className="w-3 h-3" />
+                Admin Console
+              </span>
+            </div>
             <p className="text-sm text-slate-500 mt-1">
-              View, add, edit, or delete user accounts from the central directory.
+              Centralized view of all registered user accounts. Edit details or remove users directly.
             </p>
           </div>
 
@@ -89,13 +104,6 @@ export const DashboardPage = () => {
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
-            </button>
-            <button
-              onClick={handleOpenAddModal}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-sm"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Add New User</span>
             </button>
           </div>
         </div>
@@ -111,8 +119,16 @@ export const DashboardPage = () => {
           loading={loading}
           onEdit={handleOpenEditModal}
           onDelete={handleOpenDeleteModal}
+          onView={handleOpenViewModal}
         />
       </main>
+
+      <UserDetailsModal
+        isOpen={detailsModalOpen}
+        onClose={() => setDetailsModalOpen(false)}
+        user={userToView}
+        onEdit={handleOpenEditModal}
+      />
 
       <UserModal
         isOpen={modalOpen}

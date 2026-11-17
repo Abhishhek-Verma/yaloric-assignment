@@ -8,6 +8,13 @@
 -- Enable UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Define user role enum
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM ('USER', 'ADMIN');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id         UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -16,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
     email      VARCHAR(150) NOT NULL UNIQUE,
     phone      VARCHAR(20)  NOT NULL,
     password   VARCHAR(255) NOT NULL,
+    role       user_role    NOT NULL DEFAULT 'USER',
     created_at TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
 );
@@ -37,5 +45,17 @@ CREATE TRIGGER set_updated_at
   BEFORE UPDATE ON users
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- Seed Default Admin Account (admin@yaloric.com / Admin@123)
+INSERT INTO users (first_name, last_name, email, phone, password, role)
+VALUES (
+    'Admin',
+    'User',
+    'admin@yaloric.com',
+    '9876543210',
+    '$2b$10$R69bxAzYN81Z0cmig6YRqe6KV358vILM7gvvhK5CUAv2ss92aSkLC',
+    'ADMIN'
+)
+ON CONFLICT (email) DO NOTHING;
 
 
